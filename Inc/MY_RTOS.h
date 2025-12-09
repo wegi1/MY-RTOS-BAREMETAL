@@ -86,7 +86,7 @@
 #define TASK3_STACK_SIZE    	256  // set task stack size
 #define TASK4_STACK_SIZE    	256  // set task stack size
 #define TASK5_STACK_SIZE    	512  // set task stack size
-#define TASK6_STACK_SIZE    	256    // set task stack size
+#define TASK6_STACK_SIZE    	256  // set task stack size
 #define TASK7_STACK_SIZE    	0    // set task stack size
 #define TASK8_STACK_SIZE    	0    // set task stack size
 #define TASK9_STACK_SIZE    	0    // set task stack size
@@ -168,7 +168,7 @@ typedef struct  {
 #define TASK14_PSP          (uint32_t) (TASK13_PSP - TASK13_STACK_SIZE)
 #define TASK15_PSP          (uint32_t) (TASK14_PSP - TASK14_STACK_SIZE)
 
-#define MSP_STACK           (uint32_t) (TASK6_PSP - TASK6_STACK_SIZE)
+#define MSP_STACK           (uint32_t) (TASK15_PSP - TASK15_STACK_SIZE)
 //---
 #define DUMMY_XPSR 			0x01000000U // THUMB STATE for Cortex-M
 //---

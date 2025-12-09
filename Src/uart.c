@@ -54,7 +54,9 @@ void prt_char(uint8_t *  znak) {
 //---
 
 //===
-	while((pUART2_Base[0] & (1 << 6)) == 0) { __asm volatile("NOP"); }
+	while((pUART2_Base[0] & (1 << 6)) == 0) {
+		__asm volatile("NOP"); // need beware idiot compiler in "Os" optimization remove all while loop
+	}
 	pUART2_Base[1] =   znak[0];
 //===
 

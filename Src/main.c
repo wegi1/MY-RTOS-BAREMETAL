@@ -7,8 +7,7 @@
 #include "uart.h"
 #include "MY_RTOS.h"
 //=====================================================================================================================
-extern void iddle_task(void);
-extern uint8_t idx[];
+extern void NVIC_Enable_IRQ(uint32_t IRQ);
 //---
 uint8_t idx[20];
 
@@ -71,7 +70,7 @@ int main(void)
 	pEXTI[0]  |= (1 << 0);
 	// 5.
 
-	config_IRQ_PRIO((uint8_t) EXTI0, 14);
+	config_IRQ_PRIO((uint8_t) EXTI0, 14); // BUTTON EXTI IRQ as 14 prior
 	NVIC_Enable_IRQ(EXTI0);
 
 

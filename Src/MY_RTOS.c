@@ -12,6 +12,40 @@
 //=====================================================================================================================
 //=====================================================================================================================
 //=====================================================================================================================
+//=====================================================================================================================
+//=====================================================================================================================
+//---
+uint32_t tck_cnt = 0;     // tick counter
+uint32_t current_task = 0; // task IDDLE is running
+//---
+//=====================================================================================================================
+//=====================================================================================================================
+//---
+//----------------------------------------
+//--- __attribute__((naked)) FUNCTIONS ---
+//----------------------------------------
+void change_sp_to_psp(uint32_t psp);
+void OS_start(void);
+void set_MSP(uint32_t data);
+uint32_t get_LR_VALUE_address(uint32_t * data);
+//---
+//---------------------------
+//--- regular C FUNCTIONS ---
+//---------------------------
+void enable_processor_faults(void);
+void sysTick_init(void);
+void init_tasks_stacks(void);
+void save_psp_value(uint32_t current_psp_value);
+uint32_t get_psp_value(void);
+void update_next_task(void);
+void unblock_tasks(void);
+void set_priorites_of_exc(void);
+void set_tick_and_pendsv_prio(uint8_t tick_prio, uint8_t pend_prio, uint8_t svc_prio);
+//-
+
+//---
+//=====================================================================================================================
+//=====================================================================================================================
 
 //----------------------------------------------------------------
 //--- below 3 variables arrays should be modified according to ---
@@ -128,7 +162,7 @@ uint32_t handle_Queue1(void) {
 	// print " Queue: " text
     while(inf4[ctrl] != 0){
     	while((pUART2_Base[0] & (1 << 6))== 0){
-    		__asm volatile("NOP");
+    		__asm volatile("NOP"); // need beware idiot compiler in "Os" optimization remove all while loop
     	}
     	pUART2_Base[1] = inf4[ctrl];
     	ctrl++;
@@ -138,13 +172,13 @@ uint32_t handle_Queue1(void) {
     // print many_task decimal value
     while(idx5[ctrl] != 0){
     	while((pUART2_Base[0] & (1 << 6))== 0){
-    		__asm volatile("NOP");
+    		__asm volatile("NOP"); // need beware idiot compiler in "Os" optimization remove all while loop
     	}
     	pUART2_Base[1] = idx5[ctrl];
     	ctrl++;
     }
 	while((pUART2_Base[0] & (1 << 6))== 0){
-		__asm volatile("NOP");
+		__asm volatile("NOP"); // need beware idiot compiler in "Os" optimization remove all while loop
 	}
 	pUART2_Base[1] = 0x20;
 
@@ -152,7 +186,7 @@ uint32_t handle_Queue1(void) {
 	// print " Ticks: " text
     while(inf3[ctrl] != 0){
     	while((pUART2_Base[0] & (1 << 6))== 0){
-    		__asm volatile("NOP");
+    		__asm volatile("NOP"); // need beware idiot compiler in "Os" optimization remove all while loop
     	}
     	pUART2_Base[1] = inf3[ctrl];
     	ctrl++;
@@ -164,13 +198,13 @@ uint32_t handle_Queue1(void) {
     // print tck_cnt decimal value
     while(idx4[ctrl] != 0){
     	while((pUART2_Base[0] & (1 << 6))== 0){
-    		__asm volatile("NOP");
+    		__asm volatile("NOP"); // need beware idiot compiler in "Os" optimization remove all while loop
     	}
     	pUART2_Base[1] = idx4[ctrl];
     	ctrl++;
     }
 	while((pUART2_Base[0] & (1 << 6))== 0){
-		__asm volatile("NOP");
+		__asm volatile("NOP"); // need beware idiot compiler in "Os" optimization remove all while loop
 	}
 	pUART2_Base[1] = 0x20;
 #endif
@@ -189,7 +223,7 @@ uint32_t handle_Queue1(void) {
 
     while(pAddrs[i] != 0) {
     	while((pUART2_Base[0] & (1 << 6))== 0){
-    		__asm volatile("NOP");
+    		__asm volatile("NOP"); // need beware idiot compiler in "Os" optimization remove all while loop
 //    		OS_schedule(); // switch the context instead wait for complete transmition
     	}
     	pUART2_Base[1] = pAddrs[i];
@@ -207,44 +241,6 @@ uint32_t handle_Queue1(void) {
 
 //=====================================================================================================================
 //=====================================================================================================================
-//=====================================================================================================================
-//=====================================================================================================================
-//=====================================================================================================================
-//=====================================================================================================================
-//---
-uint32_t tck_cnt = 0;     // tick counter
-uint32_t current_task = 0; // task IDDLE is running
-//---
-//=====================================================================================================================
-//=====================================================================================================================
-//---
-//----------------------------------------
-//--- __attribute__((naked)) FUNCTIONS ---
-//----------------------------------------
-void change_sp_to_psp(uint32_t psp);
-void OS_start(void);
-void set_MSP(uint32_t data);
-uint32_t get_LR_VALUE_address(uint32_t * data);
-//---
-//---------------------------
-//--- regular C FUNCTIONS ---
-//---------------------------
-void OS_delay(uint32_t delay);
-void Task_delay(uint8_t task_no , uint32_t delay );
-void enable_processor_faults(void);
-void sysTick_init(void);
-void init_tasks_stacks(void);
-void save_psp_value(uint32_t current_psp_value);
-uint32_t get_psp_value(void);
-void update_next_task(void);
-void unblock_tasks(void);
-void OS_schedule(void);
-void set_priorites_of_exc(void);
-void config_IRQ_PRIO(uint8_t irq_no, uint8_t priority_value);
-void set_tick_and_pendsv_prio(uint8_t tick_prio, uint8_t pend_prio, uint8_t svc_prio);
-//-
-void iddle_task(void); // iddle task
-//---
 //=====================================================================================================================
 //=====================================================================================================================
 
@@ -355,15 +351,6 @@ void OS_schedule(void)
     pICSR[0] = (1 << 28); // make PendSV exception
 }
 //=====================================================================================================================
-void Task_delay(uint8_t task_no , uint32_t delay ) {
-	__asm volatile("CPSID I");
-	if(task_no != 0){
-		if(task_no < MANY_TASKS) {
-			task_delay[task_no] = delay;
-		}
-	}
-	__asm volatile("CPSIE I");
-}
 void Unblock_Task(uint32_t task_no) {
 	Delay_Task(task_no, 0);
 }
@@ -518,6 +505,199 @@ void iddle_task(void)
 		__asm volatile("WFI");
 	}
 }
+//=====================================================================================================================
+//=====================================================================================================================
+
+//=====================================================================================================================
+//=====================================================================================================================
+//======================================================
+// HEX 64BIT value convert to string
+//====================================
+// INPUT:
+//    R0, =  ; POINTER TO OUTPUT char DATA BUFFER
+//    R2, =  ; VALUE TO HEXADECIMAL CONVERT LO 4BYTES
+//    R3, =  ; VALUE TO HEXADECIMAL CONVERT HI 4BYTES
+//---
+// output: no output, data in buffer are output
+//=======================================================
+//=========================
+extern __attribute__((naked)) void my_htoa64(uint8_t * buf, uint64_t data) {
+
+extern void HT64CNT(void); // declaration for find subfunction
+
+__asm volatile("PUSH    {R2, LR}");
+__asm volatile("MOVS    R1, R3");
+__asm volatile("BL      my_htoa32   ");     // CONVERT HI 4 BYTES
+__asm volatile("POP     {R1}");
+__asm volatile("ADDS    R0, R0, #8 ");    // MOVE POINTER OUTPUT BUFFER
+__asm volatile("BL      HT64CNT ");       // NOW CONVERT LOW 4 BYTES
+
+__asm volatile("POP     {PC}");
+//---
+}
+//=====================================================================================================================
+
+//======================================================
+// HEX 32BIT value convert to string
+//====================================
+// INPUT:
+//    R0, =  ; POINTER TO OUTPUT char DATA BUFFER
+//    R1, =  ; VALUE TO HEXADECIMAL CONVERT
+//---
+// output: no output, data in buffer are output
+//=======================================================
+//=========================
+
+extern __attribute__((naked)) void my_htoa32(uint8_t * buf, uint32_t data){
+
+extern void HT64CNT(void); // declaration for find subfunction
+
+__asm volatile("MOV    R3, 0x7830");     // '0x' ");
+__asm volatile("STRH   R3, [R0]");       // STORE '0x' TO BUFFER");
+__asm volatile("B HT64CNT");      // ");
+}
+extern __attribute__((naked)) void HT64CNT(void) {
+
+__asm volatile("MOVS   R3, #2");         // output data 2 bytes after start buffer
+//---
+__asm volatile("LP01:");
+__asm volatile("LSRS   R2, R1, #28");    // R2 = OUR DATA TO STRING CONVERT 1 BYTE = NYBBLE 0..F");
+__asm volatile("LSLS   R1, R1, #4");     // R1 * 16 = R1 << 4");
+__asm volatile("ADDS   R2, R2, #0x30");  // CONVERT TO NUMBER");
+__asm volatile("CMP    R2, #0x3A");
+__asm volatile("BCC.N  LP01A");          // if data < than 0x3a don't  add #7");
+__asm volatile("ADDS   R2,R2, 0x07");    // CONVER TO LETTER");
+__asm volatile("LP01A:");
+__asm volatile("STRH   R2, [R0, R3]");   // STRH store byte and zero terminated");
+__asm volatile("ADDS   R3, R3, #1");
+__asm volatile("CMP    R3, #10");
+__asm volatile("BNE.N  LP01");
+//---
+__asm volatile("BX     LR");
+//=============================================================
+}
+//=====================================================================================================================
+//======================================================
+// store LineFEED and CR value to pointed buffer
+//======================================================
+// INPUT:
+//    R0, =  ; POINTER TO OUTPUT char DATA BUFFER
+//---
+// output: no output, data in buffer are output
+//=======================================================
+extern __attribute__((naked))  void set_LF(uint32_t * buff_ad){
+	__asm volatile("MOV    R1,  #0x00000A0D");
+	__asm volatile("STR    R1, [R0]");
+	__asm volatile("BX     LR");
+//----------------
+}
+//=====================================================================================================================
+//========================================================
+// DECIMAL CONVERSION OF ANY UNSIGNED VALUE UP TO 32 BIT
+//========================================================
+// INPUT:
+//    R0, =  ; POINTER TO OUTPUT char DATA BUFFER
+//    R1, =  ; VALUE TO DECIMAL CONVERT
+//---
+// OUTPUT: R0 = LENGTH OF PRODUCED BYTES OF STRING
+//========================================================
+extern __attribute__((naked))  uint32_t my_utoa(uint8_t * buf, uint32_t data) {
+
+__asm volatile("PUSH {R4,R5,LR}");  // store registers");
+
+
+__asm volatile("MOV   R5, #0");  // LENGTH OF STRING");
+__asm volatile("STR   R5, [R0]"); // CLEAR BUFFER");
+__asm volatile("STR   R5, [R0, #4]");
+__asm volatile("STR   R5, [R0, #8]");
+__asm volatile("CALC01:");
+//------------------
+//- R4 = R1 DIV 10 -
+//------------------
+__asm volatile("LDR   R3, = 0xCCCCCCCD"); // MAGIC VALUE (!!!)");
+__asm volatile("UMULL R4,R3,R3,R1");      // this three lines looks a bit strange");
+__asm volatile("LSRS  R4,R3, #3");        // but here we gotta divide by 10 (seriously!)");
+//----------------------------------------------
+__asm volatile("MOVS  R2, R4");         // R2 = R1 div by 10 without the rest");
+__asm volatile("MOVS  R3, #0x0A");      // R3 = 10");
+__asm volatile("MUL   R4, R4, R3");     // R4 = R4 * 10");
+
+// mod 10 calculate
+// R4 = R1 mod 10
+__asm volatile("SUBS  R4, R1, R4");     // CALCULATE THE REST r4 = r1 - r4");
+
+__asm volatile("ORR   R4, R4, #0x30");  // CHANGE TO ASCII NUMBER VALUE '0..9'");
+__asm volatile("STRH  R4, [R0,R5]");    // store next decimal row and ZERO terminate string");
+__asm volatile("ADDS  R5, R5, #1");     // R5 = length of string");
+__asm volatile("MOV   R1, R2");         // R1 = before stored value in R2 = (R1 div 10)");
+__asm volatile("CMP   R1, #0");         // R1 = 0? (that was last one operation?)");
+__asm volatile("BNE.N CALC01");         // if R1 != 0 then continue CALC01 loop");
+
+__asm volatile("PUSH  {R5}");           // TEMPORARY STORE LENGTH OF STRING");
+__asm volatile("SUBS  R5, R5, #1");     // SET OFFSET AT THE END OF STRING (BACKWARD POSSITION)");
+
+// R0 = POINTER TO OUTPUT NULL TERMINATED STRING
+// R5 = OFFSET TO THE END OF STRING (BACKWARD POSSITION)
+// R1 = OFFSET TO THE START OF STRING (FORWARD POSSITION) R1 = 0 AT THE END CALC01 ROUTINE
+// R4 = BACKWARD BYTE (BYTE FROM 'RIGHT SIDE')
+// R2 = FORWARD  BYTE (BYTE FROM 'LEFT  SIDE')
+__asm volatile("CALC02:");
+__asm volatile("LDRB  R4, [R0, R5]"); // GET DATA FROM THE END (FROM RIGT SIDE)");
+__asm volatile("LDRB  R2, [R0, R1]"); // GET DATA FROM THE START (LEFT SIDE)");
+__asm volatile("STRB  R2, [R0, R5]"); // GET DATA FROM THE 'LEFT  SIDE INTO THE RIGHT SIDE'");
+__asm volatile("STRB  R4, [R0, R1]"); // GET DATA FROM THE 'RIGHT SIDE INTO THE LEFT  SIDE'");
+__asm volatile("ADDS  R1, R1, #1");   // ACTUALIZE STRING FORWARD POSSITION");
+__asm volatile("SUBS  R5, R5, #1");   // ACTUALIZE STRING BACKWARD POSSITION");
+__asm volatile("CMP   R5, R1");       // R5 =< R1 ?");
+__asm volatile("BEQ.N END_CALC");     // if R5 = R1 go to finish");
+__asm volatile("BGT.N CALC02");       // if R5 > R1 continue loop - otherway finish (R5 < R1)");
+
+__asm volatile("END_CALC:");
+// acording declaration this functin is 'int' and
+// acordind AAPCS should be returned int value in R0
+// simple 'return datalength;' in C
+// OUTPUT: R0 = LENGTH OF PRODUCED BYTES OF STRING R0 = R5
+
+__asm volatile("POP {R0, R4, R5, PC}        // restore registers // ADIOS :)");
+// OUTPUT: R0 = LENGTH OF PRODUCED STRING BYTES
+//=====================================================
+}
+//=====================================================================================================================
+//========================================================
+// DECIMAL CONVERSION OF ANY SIGNED VALUE UP TO 32 BIT
+//========================================================
+// INPUT:
+//    R0, =  ; POINTER TO OUTPUT char DATA BUFFER
+//    R1, =  ; VALUE TO DECIMAL CONVERT
+// OUTPUT: R0 = LENGTH OF PRODUCED STRING BYTES
+//========================================================
+
+extern  __attribute__((naked)) uint32_t my_itoa(uint8_t * buf, uint32_t data) {
+
+__asm volatile("CMP   R1, 0");       // IS OUR VALUE NEGATIVE?");
+__asm volatile("BGE.N my_utoa");     // IF IS POSSITIVE GO TO my_sprintf");
+__asm volatile("PUSH  {LR}");        // PC address go back to the main function");
+
+__asm volatile("MOVS  R2, '-'");
+__asm volatile("STRB  R2, [R0]");    // STORE '-' SIGN AT THE START TEXT BUFFER");
+__asm volatile("ADDS  R0, R0, #1");  // MOVE UP 1 BYTE POINTER TO OUTBUFFER");
+
+__asm volatile("NEG   R1, R1");      // CHANGE VALUE TO POSSITIVE NUMBER");
+__asm volatile("BL    my_utoa");     // CONVERT VALUE TO DECIMAL STRING");
+
+	                        // now in R0 is datalength from my_sprintf
+__asm volatile("ADDS  R0, R0, #1");  // INCREASSE LENGTH OF STRING MORE 1 BYTE OF SIGN '-'");
+__asm volatile("POP   {PC}");        // GO BACK TO THE MAIN FUNCTION");
+//======================================================
+}
+//=====================================================================================================================
+//=====================================================================================================================
+//=====================================================================================================================
+//=====================================================================================================================
+//=====================================================================================================================
+//=====================================================================================================================
+//=====================================================================================================================
+//=====================================================================================================================
 //=====================================================================================================================
 //=====================================================================================================================
 //=====================================================================================================================
