@@ -46,17 +46,16 @@ void uart_UART2_config(void){
     pUART2_Base[2]  = BRR_HI;    // Baud rate of 115200, PCLK = 16MHz UART2->BRR
     pUART2_Base[3] |= (1 << 2) | (1 << 3); // Enable Receiver and Transmitter
 }
-
+//==================================================================================================================================
+//	__asm volatile("":::"memory");
 //==================================================================================================================================
 void prt_char(uint8_t *  znak) {
 //---
-	uint32_t * pUART2_Base     = (uint32_t *)0x40004400;
+	volatile uint32_t * pUART2_Base     = (volatile uint32_t *)0x40004400;
 //---
 
 //===
-	while((pUART2_Base[0] & (1 << 6)) == 0) {
-		__asm volatile("NOP"); // need beware idiot compiler in "Os" optimization remove all while loop
-	}
+	while((pUART2_Base[0] & (1 << 6)) == 0) {}
 	pUART2_Base[1] =   znak[0];
 //===
 
